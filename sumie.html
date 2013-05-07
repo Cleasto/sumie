@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Zen Brush</title>
+		<script>
+			var brushCanvas;
+			var brushContext;
+			var oldX = -1;
+			var oldY = -1;
+			var currentX = -1;
+			var currentY = -1;
+			var mousePressed = false;
+			var brushTexture = new Image();
+			brushTexture.src = "images/brush.png";
+
+			window.onload = function()
+			{
+				brushCanvas = document.getElementById("brushCanvas");
+				brushContext = brushCanvas.getContext("2d");
+				brushContext.lineCap = "round";
+				brushContext.lineJoin = "round";
+				brushContext.lineWidth = 10;
+			}
+
+			function angleBetweenPoints(x1, y1, x2, y2)
+			{
+				newX = x2-x1;
+				newY = y2-y1;
+				return Math.atan(newY / newX);
+			}
+
+			function drawRotatedImage(image, x, y, angle, scale)
+			{
+				brushContext.save();
+				brushContext.scale(scale, scale);
+				brushContext.translate(x, y);
+				brushContext.rotate(angle);
+				brushContext.drawImage(image, -(image.width/2), -(image.height/2));
+				brushContext.restore(); 
+			}
+
+			function onMouseDown(e)
+			{
+				mousePressed = true;
+				oldX = e.clientX;
+				oldY = e.clientY;
+				currentX = oldX;
+				currentY = oldY;
+			}
+
+			function onMouseUp(e)
+			{
+				mousePressed = false;
+			}
+
+			function onMouseMove(e)
+			{
+				if(!mousePressed)
+				{
+					return;
+				}
+				oldX = currentX;
+				oldY = currentY;
+				currentX = e.clientX;
+				currentY = e.clientY;
+				coor = "Coordinates: (" + currentX + "," + currentY + ")";
+				document.getElementById("debug").innerHTML = coor;
+
+				drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), 1.0);
+			}
+
+			function onMouseOut()
+			{
+				mousePressed = false;
+				document.getElementById("debug").innerHTML="";
+			}
+
+		</script>
+	</head>
+	<body style="margin:0px;">
+
+	<canvas id="brushCanvas" width="1280" height="720" onmousedown="onMouseDown(event)" onmousemove="onMouseMove(event)" onmouseout="onMouseOut()" onmouseup="onMouseUp(event)" style="background-color:#CCCCFF"></canvas>
+	<p id="debug"></p>
+
+	</body>
+</html>
