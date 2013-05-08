@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Zen Brush</title>
+		<title>Sumie</title>
 		<script>
 			var brushCanvas;
 			var brushContext;
@@ -11,7 +11,7 @@
 			var currentY = -1;
 			var mousePressed = false;
 			var brushTexture = new Image();
-			brushTexture.src = "images/brush.png";
+			brushTexture.src = "images/brush2Black.png";
 
 			window.onload = function()
 			{
@@ -29,12 +29,17 @@
 				return Math.atan(newY / newX);
 			}
 
+			function lerp(a, b, amount)
+			{
+				return a + (b-a) * amount;
+			}
+
 			function drawRotatedImage(image, x, y, angle, scale)
 			{
 				brushContext.save();
-				brushContext.scale(scale, scale);
 				brushContext.translate(x, y);
 				brushContext.rotate(angle);
+				brushContext.scale(scale, scale);
 				brushContext.drawImage(image, -(image.width/2), -(image.height/2));
 				brushContext.restore(); 
 			}
@@ -64,9 +69,30 @@
 				currentX = e.clientX;
 				currentY = e.clientY;
 				coor = "Coordinates: (" + currentX + "," + currentY + ")";
-				document.getElementById("debug").innerHTML = coor;
+				var tempX = currentX - oldX;
+				var tempY = currentY - oldY;
+				var len = Math.sqrt(tempX * tempX + tempY * tempY);
+				if (len == 0)
+				{
+					return;
+				}
+				document.getElementById("debug").innerHTML = "Length: " + len;
+				var scale = lerp(0.3, 1.0, len / 50);
+				document.getElementById("debug").innerHTML = "Scale: " + scale;
+				scale = 1 - scale;
 
-				drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), 1.0);
+				var count = 4;
+				for (var i = 0; i <= count; i++)
+				{
+					var amt1 = i / count;
+					drawRotatedImage(
+						brushTexture,
+						lerp(oldX, currentX, amt1),
+						lerp(oldY, currentY, amt1),
+						angleBetweenPoints(oldX, oldY, currentX, currentY),
+						scale);
+				}
+				drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), scale);
 			}
 
 			function onMouseOut()
