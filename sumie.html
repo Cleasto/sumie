@@ -19,7 +19,7 @@
 				brushContext = brushCanvas.getContext("2d");
 				brushContext.lineCap = "round";
 				brushContext.lineJoin = "round";
-				brushContext.lineWidth = 10;
+				brushContext.lineWidth = 0.1;
 			}
 
 			function angleBetweenPoints(x1, y1, x2, y2)
@@ -42,6 +42,31 @@
 				brushContext.scale(scale, scale);
 				brushContext.drawImage(image, -(image.width/2), -(image.height/2));
 				brushContext.restore(); 
+			}
+
+			function drawLine(x1, y1, x2, y2, context)
+			{
+				context.beginPath();
+				context.moveTo(x1, y1);
+				context.lineTo(x2, y2);
+				context.stroke();
+			}
+
+			function drawBrushCircle(x, y, xDir, yDir, length)
+			{
+				//Calculate radius...
+				var radius = 12;
+				for (var i = 0; i < 225; i++)
+				{
+					var randAngle = Math.random() * 2 * Math.PI;
+					var randLength = Math.random() * radius;
+					var randX = x + (Math.cos(randAngle) * randLength);
+					var randY = y + (Math.sin(randAngle) * randLength);
+
+					var jitterDirX = xDir * (Math.random() * length * 0.09 + 4);
+					var jitterDirY = yDir * (Math.random() * length * 0.09 + 4);
+					drawLine(randX - jitterDirX, randY - jitterDirY, randX + jitterDirX, randY + jitterDirY, brushContext);
+				}
 			}
 
 			function onMouseDown(e)
@@ -69,30 +94,38 @@
 				currentX = e.clientX;
 				currentY = e.clientY;
 				coor = "Coordinates: (" + currentX + "," + currentY + ")";
-				var tempX = currentX - oldX;
-				var tempY = currentY - oldY;
-				var len = Math.sqrt(tempX * tempX + tempY * tempY);
+				var dirX = currentX - oldX;
+				var dirY = currentY - oldY;
+				var len = Math.sqrt(dirX * dirX + dirY * dirY);
 				if (len == 0)
 				{
 					return;
 				}
+
+				dirX /= len;
+				dirY /= len;
+
 				document.getElementById("debug").innerHTML = "Length: " + len;
 				var scale = lerp(0.3, 1.0, len / 50);
 				document.getElementById("debug").innerHTML = "Scale: " + scale;
 				scale = 1 - scale;
 
-				var count = 4;
+				drawLine(oldX, oldY, currentX, currentY, brushContext);
+
+				var pixelFreq = 3;
+				var count = len / pixelFreq;
 				for (var i = 0; i <= count; i++)
 				{
 					var amt1 = i / count;
-					drawRotatedImage(
-						brushTexture,
+
+					drawBrushCircle(
 						lerp(oldX, currentX, amt1),
 						lerp(oldY, currentY, amt1),
-						angleBetweenPoints(oldX, oldY, currentX, currentY),
-						scale);
+						dirX,
+						dirY,
+						len);
 				}
-				drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), scale);
+				// drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), scale);
 			}
 
 			function onMouseOut()
