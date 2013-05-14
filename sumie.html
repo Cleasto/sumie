@@ -12,7 +12,6 @@
 			var currentY = -1;
 			var mousePressed = false;
 			var brushTexture = new Image();
-			brushTexture.src = "images/brush2Black.png";
 
 			window.onload = function()
 			{
@@ -82,13 +81,13 @@
 			function calculateRadius(scale)
 			{
 				var val = (1-scale) * 20;
-				return clamp(val, 10, 100);
+				return clamp(val, 10, 20);
 			}
 
 			function calculateIterations(scale)
 			{
-				var val = (1-scale) * 500;
-				return clamp(val, 50, 500);
+				var val = (1-scale) * 400;
+				return clamp(val, 50, 400);
 			}
 
 			function drawBrushCircle(x, y, xDir, yDir, scale)
@@ -185,7 +184,7 @@
 	</head>
 	<body style="margin:0px;">
 
-	<canvas id="brushCanvas" width="1280" height="720" onmousedown="onMouseDown(event)" onmousemove="onMouseMove(event)" onmouseout="onMouseOut()" onmouseup="onMouseUp(event)" style="background-color:#FFFFFF"></canvas>
+	<canvas id="brushCanvas" width="1280" height="720" onmousedown="onMouseDown(event)" onmousemove="onMouseMove(event)" onmouseout="onMouseOut()" onmouseup="onMouseUp(event)" style="background-color:#FFFFCC"></canvas>
 	<p id="debug"></p>
 
 	</body>
