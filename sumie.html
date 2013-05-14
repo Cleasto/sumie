@@ -5,6 +5,7 @@
 		<script>
 			var brushCanvas;
 			var brushContext;
+			var prevScale = 1.0;
 			var oldX = -1;
 			var oldY = -1;
 			var currentX = -1;
@@ -20,6 +21,16 @@
 				brushContext.lineCap = "round";
 				brushContext.lineJoin = "round";
 				brushContext.lineWidth = 0.1;
+			}
+
+			function length(x, y)
+			{
+				return Math.sqrt(x * x + y * y);
+			}
+
+			function lengthSquared(x, y)
+			{
+				return x * x + y * y;
 			}
 
 			function angleBetweenPoints(x1, y1, x2, y2)
@@ -52,19 +63,56 @@
 				context.stroke();
 			}
 
-			function drawBrushCircle(x, y, xDir, yDir, length)
+			function clamp(value, min, max)
+			{
+				if(value < min)
+				{
+					return min;
+				}
+				else if (value > max)
+				{
+					return max;
+				}
+				else
+				{
+					return value;
+				}
+			}
+
+			function calculateRadius(scale)
+			{
+				var val = (1-scale) * 20;
+				return clamp(val, 10, 100);
+			}
+
+			function calculateIterations(scale)
+			{
+				var val = (1-scale) * 500;
+				return clamp(val, 50, 500);
+			}
+
+			function drawBrushCircle(x, y, xDir, yDir, scale)
 			{
 				//Calculate radius...
-				var radius = 12;
-				for (var i = 0; i < 225; i++)
+				document.getElementById("debug").innerHTML = "Scale: " + scale;
+				var radius = calculateRadius(scale);
+				//document.getElementById("debug").innerHTML = "Radius: " + radius;
+				var iterations = calculateIterations(scale);
+				for (var i = 0; i < iterations; i++)
 				{
-					var randAngle = Math.random() * 2 * Math.PI;
-					var randLength = Math.random() * radius;
-					var randX = x + (Math.cos(randAngle) * randLength);
-					var randY = y + (Math.sin(randAngle) * randLength);
+					var randX = x + (Math.random() * 2 * radius) - radius;
+					var randY = y + (Math.random() * 2 * radius) - radius;
+					if(lengthSquared(randX - x, randY - y) > (radius * radius))
+					{
+						continue;
+					}
+					// var randAngle = Math.random() * 2 * Math.PI;
+					// var randLength = Math.random() * radius;
+					// var randX = x + (Math.cos(randAngle) * randLength);
+					// var randY = y + (Math.sin(randAngle) * randLength);
 
-					var jitterDirX = xDir * (Math.random() * length * 0.09 + 4);
-					var jitterDirY = yDir * (Math.random() * length * 0.09 + 4);
+					var jitterDirX = xDir * (Math.random() * scale * 0.09 + 4);
+					var jitterDirY = yDir * (Math.random() * scale * 0.09 + 4);
 					drawLine(randX - jitterDirX, randY - jitterDirY, randX + jitterDirX, randY + jitterDirY, brushContext);
 				}
 			}
@@ -93,10 +141,13 @@
 				oldY = currentY;
 				currentX = e.clientX;
 				currentY = e.clientY;
-				coor = "Coordinates: (" + currentX + "," + currentY + ")";
+				
+
+
+
 				var dirX = currentX - oldX;
 				var dirY = currentY - oldY;
-				var len = Math.sqrt(dirX * dirX + dirY * dirY);
+				var len = length(dirX, dirY);
 				if (len == 0)
 				{
 					return;
@@ -105,12 +156,7 @@
 				dirX /= len;
 				dirY /= len;
 
-				document.getElementById("debug").innerHTML = "Length: " + len;
-				var scale = lerp(0.3, 1.0, len / 50);
-				document.getElementById("debug").innerHTML = "Scale: " + scale;
-				scale = 1 - scale;
-
-				drawLine(oldX, oldY, currentX, currentY, brushContext);
+				var scale = len / (brushCanvas.width / 10);
 
 				var pixelFreq = 3;
 				var count = len / pixelFreq;
@@ -123,9 +169,10 @@
 						lerp(oldY, currentY, amt1),
 						dirX,
 						dirY,
-						len);
+						lerp(prevScale, scale, amt1));
 				}
-				// drawRotatedImage(brushTexture, currentX, currentY, angleBetweenPoints(oldX, oldY, currentX, currentY), scale);
+
+				prevScale = scale;
 			}
 
 			function onMouseOut()
@@ -138,7 +185,7 @@
 	</head>
 	<body style="margin:0px;">
 
-	<canvas id="brushCanvas" width="1280" height="720" onmousedown="onMouseDown(event)" onmousemove="onMouseMove(event)" onmouseout="onMouseOut()" onmouseup="onMouseUp(event)" style="background-color:#CCCCFF"></canvas>
+	<canvas id="brushCanvas" width="1280" height="720" onmousedown="onMouseDown(event)" onmousemove="onMouseMove(event)" onmouseout="onMouseOut()" onmouseup="onMouseUp(event)" style="background-color:#FFFFFF"></canvas>
 	<p id="debug"></p>
 
 	</body>
