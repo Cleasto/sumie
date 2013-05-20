@@ -5,22 +5,24 @@
 		<script>
 			var brushCanvas;
 			var brushContext;
-			var prevScale = 1.0;
+			var prevScale = 0.0;
 			var oldX = -1;
 			var oldY = -1;
 			var currentX = -1;
 			var currentY = -1;
 			var mousePressed = false;
 			var brushTexture = new Image();
+			var maxStrokeLength = 100; //From experiments of fast stylus dragging
+			var radius = 20;
 
-			window.onload = function()
-			{
-				brushCanvas = document.getElementById("brushCanvas");
-				brushContext = brushCanvas.getContext("2d");
-				brushContext.lineCap = "round";
-				brushContext.lineJoin = "round";
-				brushContext.lineWidth = 0.1;
-			}
+			// window.onload = function()
+			// {
+			// 	brushCanvas = document.getElementById("brushCanvas");
+			// 	brushContext = brushCanvas.getContext("2d");
+			// 	brushContext.lineCap = "round";
+			// 	brushContext.lineJoin = "round";
+			// 	brushContext.lineWidth = 0.01;
+			// }
 
 			function length(x, y)
 			{
@@ -87,54 +89,13 @@
 				}
 			}
 
-			function calculateRadius(scale)
-			{
-				var val = (1-scale) * 20;
-				return clamp(val, 10, 20);
-			}
-
-			function calculateIterations(scale)
-			{
-				var val = (1-scale) * 600;
-				return clamp(val, 50, 600);
-			}
-
-			function drawBrushCircle(x, y, xDir, yDir, scale)
-			{
-				//Calculate radius...
-				document.getElementById("debug").innerHTML = "Scale: " + scale;
-				var radius = calculateRadius(scale);
-				//document.getElementById("debug").innerHTML = "Radius: " + radius;
-				var iterations = calculateIterations(scale);
-				beginLineBatch(brushContext);
-				document.getElementById("debug").innerHTML = "Iterations: " + iterations;
-				for (var i = 0; i < iterations; i++)
-				{
-					var randX = x + (Math.random() * 2 * radius) - radius;
-					var randY = y + (Math.random() * 2 * radius) - radius;
-					if(lengthSquared(randX - x, randY - y) > (radius * radius))
-					{
-						continue;
-					}
-					// var randAngle = Math.random() * 2 * Math.PI;
-					// var randLength = Math.random() * radius;
-					// var randX = x + (Math.cos(randAngle) * randLength);
-					// var randY = y + (Math.sin(randAngle) * randLength);
-
-					var jitterDirX = xDir * (Math.random() * scale * 10 + 4);
-					var jitterDirY = yDir * (Math.random() * scale * 10 + 4);
-					batchDrawLine(randX - jitterDirX, randY - jitterDirY, randX + jitterDirX, randY + jitterDirY, brushContext);
-				}
-				endLineBatch(brushContext);
-			}
-
 			function onMouseDown(e)
 			{
 				mousePressed = true;
-				oldX = e.clientX;
-				oldY = e.clientY;
-				currentX = oldX;
-				currentY = oldY;
+				currentX = e.clientX;
+				currentY = e.clientY;
+				oldX = currentX;
+				oldY = currentY;
 			}
 
 			function onMouseUp(e)
@@ -144,32 +105,100 @@
 
 			function onMouseMove(e)
 			{
-				if(!mousePressed)
-				{
-					return;
-				}
 				oldX = currentX;
 				oldY = currentY;
 				currentX = e.clientX;
 				currentY = e.clientY;
-				
+			}
 
+			function onMouseOut()
+			{
+				mousePressed = false;
+			}
 
+			function calculateRadius(scale)
+			{
+				var val = (1-scale) * radius;
+				return clamp(val, 0.5 * radius, radius);
+			}
+
+			function calculateIterations(radius)
+			{
+				// Make iterations proportional to radius
+				//var val = (1-radius) * 400;
+				//return clamp(val, 50, 400);
+
+				//return Math.PI * radius * radius * 0.05;
+				return radius * 4;
+			}
+
+			function drawBrushCircle(x, y, xDir, yDir, scale)
+			{
+				var radius = calculateRadius(scale);
+				//document.getElementById("debug").innerHTML = "Radius: " + radius;
+				var iterations = calculateIterations(radius);
+				document.getElementById("debug").innerHTML = "Iterations: " + iterations;
+				var perpDirX = -yDir;
+				var perpDirY = xDir;
+				brushContext.lineWidth = lerp(0.005, 0.09, (1-scale));
+				beginLineBatch(brushContext);
+				for (var i = 0; i < iterations; i++)
+				{
+					var randX = x + (Math.random() * 2 * radius) - radius;
+					var randY = y + (Math.random() * 2 * radius) - radius;
+					if(lengthSquared(randX - x, randY - y) > (radius * radius))
+					{
+						continue;
+					}
+
+					// var jitterDirX = xDir * (Math.random() * scale * 10 + 4);
+					// var jitterDirY = yDir * (Math.random() * scale * 10 + 4);
+
+					var jitterDirX = xDir;// + (1-scale) * perpDirX;
+					var jitterDirY = yDir;// + (1-scale) * perpDirY;
+
+					var maxBrushLength = 20;
+					var brushLength = scale * maxBrushLength;
+					brushLength = clamp(brushLength, 0.5 * maxBrushLength, maxBrushLength);
+
+					jitterDirX *= brushLength;
+					jitterDirY *= brushLength;
+
+					batchDrawLine(randX - jitterDirX, randY - jitterDirY, randX + jitterDirX, randY + jitterDirY, brushContext);
+				}
+				endLineBatch(brushContext);
+			}
+
+			function drawBrushStroke()
+			{
+				if(!mousePressed)
+				{
+					return;
+				}
 
 				var dirX = currentX - oldX;
 				var dirY = currentY - oldY;
 				var len = length(dirX, dirY);
 				if (len == 0)
 				{
+					drawBrushCircle(
+						currentX,
+						currentY,
+						Math.random(),
+						Math.random(),
+						0.0);
 					return;
 				}
 
 				dirX /= len;
 				dirY /= len;
 
-				var scale = len / (brushCanvas.width / 10);
+				var scale = len / maxStrokeLength;
+				scale = clamp(scale, 0.0, 1.0);
 
-				var pixelFreq = 3;
+				document.getElementById("debug").innerHTML = "Scale: " + scale;
+
+				var pixelFreq = 1;
 				var count = len / pixelFreq;
 				for (var i = 0; i <= count; i++)
 				{
@@ -186,11 +215,35 @@
 				prevScale = scale;
 			}
 
-			function onMouseOut()
+			// shim layer with setTimeout fallback
+			// window.requestAnimFrame = (function(){
+			// 	return  window.requestAnimationFrame ||
+			// 			window.webkitRequestAnimationFrame ||
+			// 			window.mozRequestAnimationFrame ||
+			// 			function( callback ) {
+			// 				window.setTimeout(callback, 1000 / 60);
+			// 			};
+			// })();
+
+			// (function animloop(){
+			// 	requestAnimFrame(animloop);
+			// 	drawBrushStroke();
+			// })();
+
+
+			var drawLoop = function() {
+				drawBrushStroke();
+				setTimeout(drawLoop, 10);
+			};
+			window.document.addEventListener("DOMContentLoaded", function()
 			{
-				mousePressed = false;
-				document.getElementById("debug").innerHTML="";
-			}
+				brushCanvas = document.getElementById("brushCanvas");
+				brushContext = brushCanvas.getContext("2d");
+				brushContext.lineCap = "round";
+				brushContext.lineJoin = "round";
+				brushContext.lineWidth = 0.1;
+				drawLoop();
+			});
 
 		</script>
 	</head>
