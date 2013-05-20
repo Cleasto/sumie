@@ -5,15 +5,21 @@
 		<script>
 			var brushCanvas;
 			var brushContext;
-			var prevScale = 0.0;
+			var oldScale = 0.0;
+			var oldestScale = 0.0;
+
+			var oldestX = -1;
+			var oldestX = -1;
 			var oldX = -1;
 			var oldY = -1;
+
 			var currentX = -1;
 			var currentY = -1;
 			var mousePressed = false;
 			var brushTexture = new Image();
-			var maxStrokeLength = 100; //From experiments of fast stylus dragging
+			var maxStrokeLength = 50; //From experiments of fast stylus dragging
 			var radius = 20;
+			var points = [];
 
 			// window.onload = function()
 			// {
@@ -41,9 +47,14 @@
 				return Math.atan(newY / newX);
 			}
 
-			function lerp(a, b, amount)
+			function lerp(a, b, t)
 			{
-				return a + (b-a) * amount;
+				return a + (b-a) * t;
+			}
+
+			function quadCurve(a, b, c, t)
+			{
+				return a * (1-t) * (1-t) + 2 * (1-t) * t * b + t * t * c;
 			}
 
 			function drawRotatedImage(image, x, y, angle, scale)
@@ -96,6 +107,8 @@
 				currentY = e.clientY;
 				oldX = currentX;
 				oldY = currentY;
+				oldestX = oldX;
+				oldestY = oldY;
 			}
 
 			function onMouseUp(e)
@@ -105,6 +118,8 @@
 
 			function onMouseMove(e)
 			{
+				oldestX = oldX;
+				oldestY = oldY;
 				oldX = currentX;
 				oldY = currentY;
 				currentX = e.clientX;
@@ -119,7 +134,7 @@
 			function calculateRadius(scale)
 			{
 				var val = (1-scale) * radius;
-				return clamp(val, 0.5 * radius, radius);
+				return clamp(val, radius, radius);
 			}
 
 			function calculateIterations(radius)
@@ -181,12 +196,12 @@
 				var len = length(dirX, dirY);
 				if (len == 0)
 				{
-					drawBrushCircle(
-						currentX,
-						currentY,
-						Math.random(),
-						Math.random(),
-						0.0);
+					// drawBrushCircle(
+					// 	currentX,
+					// 	currentY,
+					// 	Math.random(),
+					// 	Math.random(),
+					// 	0.0);
 					return;
 				}
 
@@ -198,21 +213,37 @@
 
 				document.getElementById("debug").innerHTML = "Scale: " + scale;
 
+				var midX1 = (oldX + oldestX) * 0.5;
+				var midY1 = (oldY + oldestY) * 0.5;
+				var midX2 = (oldX + currentX) * 0.5;
+				var midY2 = (oldY + currentY) * 0.5;
+
+				var midScale1 = (oldScale + oldestScale) * 0.5;
+				var midScale2 = (oldScale + scale) * 0.5;
+
 				var pixelFreq = 1;
 				var count = len / pixelFreq;
 				for (var i = 0; i <= count; i++)
 				{
 					var amt1 = i / count;
 
+					// drawBrushCircle(
+					// 	lerp(oldX, currentX, amt1),
+					// 	lerp(oldY, currentY, amt1),
+					// 	dirX,
+					// 	dirY,
+					// 	lerp(oldScale, scale, amt1));
+
 					drawBrushCircle(
-						lerp(oldX, currentX, amt1),
-						lerp(oldY, currentY, amt1),
+						quadCurve(midX1, oldX, midX2, amt1),
+						quadCurve(midY1, oldY, midY2, amt1),
 						dirX,
 						dirY,
-						lerp(prevScale, scale, amt1));
+						quadCurve(midScale1, oldScale, midScale2, amt1));
 				}
 
-				prevScale = scale;
+				oldestScale = oldScale;
+				oldScale = scale;
 			}
 
 			// shim layer with setTimeout fallback
