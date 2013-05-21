@@ -14,10 +14,6 @@ var currentPoint = {x:-1, y:-1};
 var mousePressed = false;
 var maxStrokeLength = 80; //From experiments of fast stylus dragging
 var radius = 60;
-var points = [];
-
-
-//var vector = {x:10, y:20};
 
 function beginLineBatch(context)
 {
@@ -28,8 +24,7 @@ function beginLineBatch(context)
 function batchDrawLine(u, v, context)
 {
 	context.moveTo(u.x, u.y);
-	//context.lineTo(v.x, v.y);
-	context.quadraticCurveTo(10, 10, v.x, v.y);
+	context.lineTo(v.x, v.y);
 }
 
 function endLineBatch(context)
@@ -70,7 +65,7 @@ function onMouseOut()
 
 function calculateRadius(scale)
 {
-	var val = (1-scale) * radius;
+	var val = 1 - Math.sqrt(1-scale) * radius;
 	return clamp(val, radius, radius);
 }
 
@@ -81,10 +76,10 @@ function calculateIterations(radius)
 	//return clamp(val, 50, 400);
 
 	//return Math.PI * radius * radius * 0.05;
-	return 1;
+	return radius * 2;
 }
 
-function drawBrushCircle(pos, dir, scale, oldDrawPos, futureDrawPos)
+function drawBrushCircle(pos, dir, scale)
 {
 	var radius = calculateRadius(scale);
 	//document.getElementById("debug").innerHTML = "Radius: " + radius;
@@ -92,7 +87,6 @@ function drawBrushCircle(pos, dir, scale, oldDrawPos, futureDrawPos)
 	//document.getElementById("debug").innerHTML = "Iterations: " + iterations;
 	var perpDir = {x:-dir.y, y:dir.x};
 	brushContext.lineWidth = lerp(0.005, 0.09, (1-scale));
-	brushContext.lineWidth = 1.0;
 	beginLineBatch(brushContext);
 	for (var i = 0; i < iterations; i++)
 	{
@@ -119,33 +113,18 @@ function drawBrushCircle(pos, dir, scale, oldDrawPos, futureDrawPos)
 		// var jitterDirX = xDir;// + (1-scale) * perpDirX;
 		// var jitterDirY = yDir;// + (1-scale) * perpDirY;
 
-		var maxBrushLength = 50;
-		var brushLength = scale * maxBrushLength;
-		brushLength = clamp(brushLength, 0.5 * maxBrushLength, maxBrushLength);
+		var maxBrushLength = 25;
+		var brushLength = (scale * scale) * maxBrushLength;
+		brushLength = clamp(brushLength, 0.05 * maxBrushLength, maxBrushLength);
 
 
 		jitterDir.x *= brushLength;
 		jitterDir.y *= brushLength;
 
-		// batchDrawLine(
-		// 	{x:randPoint.x - jitterDir.x, y:randPoint.y - jitterDir.y},
-		// 	{x:randPoint.x + jitterDir.x, y:randPoint.y + jitterDir.y}, 
-		// 	brushContext);
-
-		var posToOld = {x:oldDrawPos.x - pos.x, y:oldDrawPos.y - pos.y};
-		posToOld.x /= length(posToOld);
-		posToOld.y /= length(posToOld);
-
-		var posToNew = {x:futureDrawPos.x - pos.x, y:futureDrawPos.y - pos.y};
-		posToNew.x /= length(posToNew);
-		posToNew.y /= length(posToNew);
-
-		brushContext.moveTo(randPoint.x + posToOld.x * brushLength, randPoint.y + posToOld.y * brushLength);
-		brushContext.quadraticCurveTo(
-			randPoint.x,
-			randPoint.y,
-			randPoint.x + posToNew.x * brushLength,
-			randPoint.y + posToNew.y * brushLength);
+		batchDrawLine(
+			{x:randPoint.x - jitterDir.x, y:randPoint.y - jitterDir.y},
+			{x:randPoint.x + jitterDir.x, y:randPoint.y + jitterDir.y}, 
+			brushContext);
 	}
 	endLineBatch(brushContext);
 }
@@ -163,12 +142,12 @@ function drawBrushStroke()
 	var len = length(dir);
 	if (len == 0)
 	{
-		// drawBrushCircle(
-		// 	currentPoint,
-		// 	currentPoint.y,
-		// 	Math.random(),
-		// 	Math.random(),
-		// 	0.0);
+		drawBrushCircle(
+			currentPoint,
+			currentPoint.y,
+			Math.random(),
+			Math.random(),
+			0.0);
 		return;
 	}
 
@@ -187,31 +166,20 @@ function drawBrushStroke()
 	var midDir1 = {x:(oldDir.x + oldestDir.x) * 0.5, y:(oldDir.y + oldestDir.y) * 0.5};
 	var midDir2 = {x:(oldDir.x + dir.x) * 0.5, y:(oldDir.y + dir.y) * 0.5};
 
-	var pixelFreq = 100;
+	var pixelFreq = 1;
 	var count = len / pixelFreq;
 	for (var i = 0; i <= count; i++)
 	{
 		var amt = i / count;
 
-		// drawBrushCircle(
-		// 	lerp(oldPoint, currentPoint, amt),
-		// 	lerp(oldPoint, currentPoint.y, amt),
-		// 	dirX,
-		// 	dirY,
-		// 	lerp(oldScale, scale, amt));
-		var oldDrawPos = quadCurveVector(mid1, oldPoint, mid2, clamp((i-1) / count, 0.0, 1.0));
 		var drawPos = quadCurveVector(mid1, oldPoint, mid2, amt);
-		var futureDrawPos = quadCurveVector(mid1, oldPoint, mid2, clamp((i+1) / count, 0.0, 1.0));
-		//var drawDir = normalize(quadCurveVector(midDir1, oldDir, midDir2, amt));
-		var drawDir = normalize({x:drawPos.x - oldDrawPos.x, y:drawPos.y - oldDrawPos.y});
+		var drawDir = normalize(quadCurveVector(midDir1, oldDir, midDir2, amt));
 		var drawScale = quadCurve(midScale1, oldScale, midScale2, amt);
 
 		drawBrushCircle(
 			drawPos,
 			drawDir,
-			drawScale,
-			oldDrawPos,
-			futureDrawPos);
+			drawScale);
 	}
 
 	oldestScale = oldScale;
